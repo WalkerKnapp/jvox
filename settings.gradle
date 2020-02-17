@@ -1,0 +1,6 @@
+rootProject.name = 'jvox'
+include 'core'
+findProject(':core')?.name = 'jvox-core'
+include 'binvox'
+findProject(':binvox')?.name = 'jvox-binvox'
+
