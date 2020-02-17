@@ -1,0 +1,3 @@
+[submodule "trimesh-natives/libs/trimesh2"]
+	path = trimesh-natives/libs/trimesh2
+	url = https://github.com/Forceflow/trimesh2.git

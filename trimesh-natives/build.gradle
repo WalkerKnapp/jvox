@@ -1,0 +1,74 @@
+import org.gradle.internal.jvm.Jvm
+
+import java.nio.file.Files
+
+plugins {
+    id 'cpp-library'
+}
+
+def FREEGLUT_BINARIES = 'https://www.transmissionzero.co.uk/files/software/development/GLUT/freeglut-MSVC.zip'
+
+task downloadFreeglut {
+    doLast {
+        def zipPath = file('libs/freeglut.zip')
+        new URL(FREEGLUT_BINARIES).withInputStream { i -> zipPath.withOutputStream { it << i }}
+    }
+}
+
+task unzipFreeglut (dependsOn: "downloadFreeglut", type: Copy) {
+    def zipPath = file('libs/freeglut.zip')
+    def outputDir = file('libs')
+    from zipTree(zipPath)
+    into outputDir
+}
+
+assemble {
+    dependsOn "unzipFreeglut", ":jvox-trimesh:generateJniHeaders"
+}
+
+library {
+    binaries.configureEach {
+        def compileTask = compileTask.get()
+        def linkExecutable = linkTask.get()
+
+        if(toolChain instanceof VisualCpp) {
+            linkExecutable.linkerArgs.add("/DEFAULTLIB:glu32.lib")
+            linkExecutable.linkerArgs.add("/DEFAULTLIB:opengl32.lib")
+            linkExecutable.linkerArgs.add("/DEFAULTLIB:winmm.lib")
+            linkExecutable.linkerArgs.add("/DEFAULTLIB:gdi32.lib")
+        } else if (toolChain instanceof GccCompatibleToolChain) {
+            // -lgluit -lwinmm -lglu32 -lopengl32 -lgdi32
+            linkExecutable.linkerArgs.add("-lgluit")
+            linkExecutable.linkerArgs.add("-lwinmm")
+            linkExecutable.linkerArgs.add("-lglu32")
+            linkExecutable.linkerArgs.add("-lopengl32")
+            linkExecutable.linkerArgs.add("-lgdi32")
+        }
+    }
+    source.from {
+        files('src/main/cpp', 'libs/trimesh2/gluit', 'libs/trimesh2/libsrc',
+                //, 'libs/trimesh2/utilsrc'
+        )
+    }
+    publicHeaders.from {
+        files('src/main/headers')
+    }
+    privateHeaders.from {
+        files('libs/trimesh2/include', 'libs/trimesh2/include/GL')
+    }
+}
+
+components.main.binaries.whenElementFinalized { binary ->
+    project.dependencies {
+        System.out.println("Including JNI Path")
+        def javaIndludes = Jvm.current().javaHome.toPath().resolve("include")
+        add(binary.includePathConfiguration.name, files(javaIndludes))
+
+        for(java.nio.file.Path child : Files.newDirectoryStream(javaIndludes, { path -> Files.isDirectory(path) })) {
+            add(binary.includePathConfiguration.name, files(child))
+        }
+
+        // Link against FreeGLUT
+        add(binary.linkLibraries.name, files('libs/freeglut/lib/x64/freeglut.lib'))
+    }
+}

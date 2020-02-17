@@ -1,0 +1,8 @@
+/.gradle/
+/.idea/
+/trimesh/build/tmp/generateJniHeaders/com/walker/jvox/
+/trimesh/build/
+/trimesh-natives/libs/freeglut/
+/trimesh-natives/libs/freeglut.zip
+/trimesh-natives/src/main/headers/
+/trimesh-natives/build/

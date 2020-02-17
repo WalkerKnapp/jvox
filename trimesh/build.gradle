@@ -1,13 +1,37 @@
+import org.gradle.internal.jvm.Jvm
+
+import java.nio.file.Files
+import java.nio.file.Paths
+
 plugins {
     id 'java'
 }
 
 sourceCompatibility = 1.8
 
-repositories {
-    mavenCentral()
+task generateJniHeaders(type: Exec, description: 'Generates C headers for JNI by running javah', group: 'build') {
+    def nativeIncludes = "../trimesh-natives/src/main/headers"
+
+    file("build/tmp/generateJniHeaders").mkdirs()
+
+    ArrayList<String> javacCommand = new ArrayList<String>()
+    javacCommand.add(Jvm.current().javacExecutable.toString())
+    javacCommand.add("-d")
+    javacCommand.add("build/tmp/generateJniHeaders")
+    javacCommand.add("-h")
+    javacCommand.add(nativeIncludes)
+
+    sourceSets.main.allJava.forEach({ sourceFile ->
+        javacCommand.add(sourceFile.toPath().toAbsolutePath().toString())
+    })
+
+    commandLine javacCommand.toArray()
 }
 
-dependencies {
-    testCompile group: 'junit', name: 'junit', version: '4.12'
+sourceSets {
+    main {
+        resources {
+            srcDirs 'src/main/resources', project(":jvox-trimesh-natives").buildDir.getAbsolutePath() + '/lib/main/debug'
+        }
+    }
 }
