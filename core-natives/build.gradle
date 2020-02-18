@@ -10,7 +10,39 @@ assemble {
     dependsOn ":jvox-core:generateJniHeaders"
 }
 
+library {
+    binaries.configureEach {
+        def compileTask = compileTask.get()
+        def linkExecutable = linkTask.get()
+
+        if(toolChain instanceof VisualCpp) {
+            linkExecutable.linkerArgs.add("/LIBPATH:B:\\Programs\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2\\lib\\x64")
+        } else if (toolChain instanceof GccCompatibleToolChain) {
+
+        }
+    }
+
+    dependencies {
+        implementation project(":jvox-trimesh-natives")
+    }
+
+    source.from {
+        files(fileTree(dir: 'src/main/cpp'),
+                fileTree(dir: 'libs/cuda_voxelizer/src', exclude: 'main.cpp'))
+    }
+
+    publicHeaders.from {
+        files('src/main/headers')
+    }
+    privateHeaders.from {
+        files('libs/cuda_voxelizer/src', 'libs/glm')
+    }
+}
+
+System.out.println(library.source.from)
+
 components.main.binaries.whenElementFinalized { binary ->
+
     project.dependencies {
         System.out.println("Including JNI Path")
         def javaIndludes = Jvm.current().javaHome.toPath().resolve("include")
@@ -19,21 +51,40 @@ components.main.binaries.whenElementFinalized { binary ->
         for(java.nio.file.Path child : Files.newDirectoryStream(javaIndludes, { path -> Files.isDirectory(path) })) {
             add(binary.includePathConfiguration.name, files(child))
         }
-    }
-}
 
-library {
-    dependencies {
-        implementation project(":jvox-trimesh-natives")
-    }
+        // Include CUDA
+        def cudaPath
 
-    source.from {
-        files('src/main/cpp', 'libs/cuda_voxelizer/src')
-    }
-    publicHeaders.from {
-        files('src/main/headers')
-    }
-    privateHeaders.from {
-        files('libs/cuda_voxelizer/src', 'libs/glm')
+        if(System.getenv("CUDA_PATH") == null) {
+            throw new IllegalStateException("CUDA not found: CUDA_PATH environment variable does not exist.")
+        }
+
+        cudaPath = file(System.getenv("CUDA_PATH")).toPath()
+
+        def cudaIncludePath
+        def cudaLibPath
+
+        if(Files.exists(cudaPath.resolve("Include"))) {
+            cudaIncludePath = cudaPath.resolve("Include")
+        } else if(Files.exists(cudaPath.resolve("include"))) {
+            cudaIncludePath = cudaPath.resolve("include")
+        } else {
+            throw new IllegalStateException("Could not find Cuda Include folder. Check your Cuda install and your CUDA_PATH environment variable.")
+        }
+
+        def architectureName = binary.getTargetPlatform().getTargetMachine().getArchitecture().getName()
+
+        if(architectureName == MachineArchitecture.X86) {
+            cudaLibPath = cudaPath.resolve("lib").resolve("Win32")
+        } else if (architectureName == MachineArchitecture.X86_64) {
+            cudaLibPath = cudaPath.resolve("lib").resolve("x64")
+        } else {
+            throw new GradleException("Unknown target platform: " + architectureName)
+        }
+
+        add(binary.includePathConfiguration.name, files(cudaIncludePath));
+        for(java.nio.file.Path child : Files.newDirectoryStream(cudaLibPath)) {
+            add(binary.linkLibraries.name, files(child))
+        }
     }
 }

@@ -27,6 +27,10 @@ task generateJniHeaders(type: JavaCompile, group: 'build') {
     source sourceSets.main.allJava
 }
 
+processResources {
+    dependsOn ":jvox-core-natives:assemble"
+}
+
 sourceSets {
     main {
         resources {

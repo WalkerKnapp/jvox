@@ -21,6 +21,10 @@ task generateJniHeaders(type: JavaCompile, group: 'build') {
     source sourceSets.main.allJava
 }
 
+processResources {
+    dependsOn ":jvox-trimesh-natives:assemble"
+}
+
 sourceSets {
     main {
         resources {
