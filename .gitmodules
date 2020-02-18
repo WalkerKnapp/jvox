@@ -1,3 +1,9 @@
 [submodule "trimesh-natives/libs/trimesh2"]
 	path = trimesh-natives/libs/trimesh2
 	url = https://github.com/Forceflow/trimesh2.git
+[submodule "core-natives/libs/cuda_voxelizer"]
+	path = core-natives/libs/cuda_voxelizer
+	url = https://github.com/Forceflow/cuda_voxelizer.git
+[submodule "core-natives/libs/glm"]
+	path = core-natives/libs/glm
+	url = https://github.com/g-truc/glm.git

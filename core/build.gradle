@@ -1,3 +1,5 @@
+import org.gradle.internal.jvm.Jvm
+
 plugins {
     id 'java'
 }
@@ -11,4 +13,24 @@ repositories {
 dependencies {
     implementation project(":jvox-trimesh")
     testCompile group: 'junit', name: 'junit', version: '4.12'
+}
+
+task generateJniHeaders(type: JavaCompile, group: 'build') {
+    def nativeIncludes = "../core-natives/src/main/headers"
+    file("build/tmp/generateJniHeaders").mkdirs()
+
+    getOptions().getCompilerArgs().add("-h")
+    getOptions().getCompilerArgs().add(nativeIncludes)
+    setDestinationDir(file("build/tmp/generateJniHeaders"))
+    setClasspath(compileJava.classpath)
+
+    source sourceSets.main.allJava
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDirs 'src/main/resources', project(":jvox-core-natives").buildDir.getAbsolutePath() + '/lib/main/debug'
+        }
+    }
 }

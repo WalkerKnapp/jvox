@@ -1,0 +1,39 @@
+import org.gradle.internal.jvm.Jvm
+
+import java.nio.file.Files
+
+plugins {
+    id 'cpp-library'
+}
+
+assemble {
+    dependsOn ":jvox-core:generateJniHeaders"
+}
+
+components.main.binaries.whenElementFinalized { binary ->
+    project.dependencies {
+        System.out.println("Including JNI Path")
+        def javaIndludes = Jvm.current().javaHome.toPath().resolve("include")
+        add(binary.includePathConfiguration.name, files(javaIndludes))
+
+        for(java.nio.file.Path child : Files.newDirectoryStream(javaIndludes, { path -> Files.isDirectory(path) })) {
+            add(binary.includePathConfiguration.name, files(child))
+        }
+    }
+}
+
+library {
+    dependencies {
+        implementation project(":jvox-trimesh-natives")
+    }
+
+    source.from {
+        files('src/main/cpp', 'libs/cuda_voxelizer/src')
+    }
+    publicHeaders.from {
+        files('src/main/headers')
+    }
+    privateHeaders.from {
+        files('libs/cuda_voxelizer/src', 'libs/glm')
+    }
+}

@@ -51,10 +51,10 @@ library {
         )
     }
     publicHeaders.from {
-        files('src/main/headers')
+        files('libs/trimesh2/include')
     }
     privateHeaders.from {
-        files('libs/trimesh2/include', 'libs/trimesh2/include/GL')
+        files('src/main/headers', 'libs/trimesh2/include/GL')
     }
 }
 
