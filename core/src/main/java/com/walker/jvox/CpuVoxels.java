@@ -6,8 +6,17 @@ import java.nio.ByteBuffer;
  * Represents voxels stored in CPU memory, either voxelized using the CPU algorithm or moved from CUDA memory
  */
 public class CpuVoxels extends Voxels {
-    private CpuVoxels() {
+    /**
+     * Create a new set of voxels given a gridsize
+     */
+    public CpuVoxels(int gridSize) {
+        this.gridSize = gridSize;
+        this.voxelData = createNewVoxelData(gridSize);
+    }
 
+    private CpuVoxels(long voxelData, int gridSize) {
+        this.voxelData = voxelData;
+        this.gridSize = gridSize;
     }
 
     @Override
@@ -23,9 +32,7 @@ public class CpuVoxels extends Voxels {
      * @return
      */
     public static CpuVoxels voxelize(TriMesh mesh, int gridSize) {
-        CpuVoxels voxels = new CpuVoxels();
-        voxels.voxelData = nVoxelize(mesh.triMeshPointer, gridSize);
-        return voxels;
+        return new CpuVoxels(nVoxelize(mesh.triMeshPointer, gridSize), gridSize);
     }
 
     /**
@@ -37,12 +44,11 @@ public class CpuVoxels extends Voxels {
      * @return
      */
     public static CpuVoxels voxelize(TriMesh mesh, long externalTable, int gridSize) {
-        CpuVoxels voxels = new CpuVoxels();
-        voxels.voxelData = nVoxelize(mesh.triMeshPointer, externalTable, gridSize);
-        return voxels;
+        return new CpuVoxels(nVoxelize(mesh.triMeshPointer, externalTable, gridSize), gridSize);
     }
 
     // Native Methods
+    private static native long createNewVoxelData(int gridSize);
     private static native long nVoxelize(long meshPointer, int gridsize);
     private static native long nVoxelize(long meshPointer, long externalTable, int gridsize);
     private static native void destroyVoxelData(long voxelDataPointer);

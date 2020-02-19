@@ -10,8 +10,17 @@ public class CudaVoxels extends Voxels {
         cudaEnabled = initializeCuda();
     }
 
-    private CudaVoxels() {
+    /**
+     * Create a new set of voxels given a gridsize in CUDA memory.
+     */
+    public CudaVoxels(int gridSize) {
+        this.gridSize = gridSize;
+        this.voxelData = createNewVoxelData(gridSize);
+    }
 
+    private CudaVoxels(long voxelData, int gridSize) {
+        this.voxelData = voxelData;
+        this.gridSize = gridSize;
     }
 
     @Override
@@ -31,9 +40,7 @@ public class CudaVoxels extends Voxels {
      * @return
      */
     public static CudaVoxels voxelize(TriMesh mesh, int gridSize) {
-        CudaVoxels voxels = new CudaVoxels();
-        voxels.voxelData = nVoxelize(mesh.triMeshPointer, gridSize);
-        return voxels;
+        return new CudaVoxels(nVoxelize(mesh.triMeshPointer, gridSize), gridSize);
     }
 
     /**
@@ -45,14 +52,13 @@ public class CudaVoxels extends Voxels {
      * @return
      */
     public static CudaVoxels voxelize(TriMesh mesh, long externalTable, int gridSize) {
-        CudaVoxels voxels = new CudaVoxels();
-        voxels.voxelData = nVoxelize(mesh.triMeshPointer, externalTable, gridSize);
-        return voxels;
+        return new CudaVoxels(nVoxelize(mesh.triMeshPointer, externalTable, gridSize), gridSize);
     }
 
     // Native Methods
     private static native boolean initializeCuda();
 
+    private static native long createNewVoxelData(int gridSize);
     private static native long nVoxelize(long meshPointer, int gridsize);
     private static native long nVoxelize(long meshPointer, long externalTable, int gridsize);
     private static native void destroyVoxelData(long voxelDataPointer);
