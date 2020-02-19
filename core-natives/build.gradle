@@ -1,6 +1,7 @@
 import org.gradle.internal.jvm.Jvm
 
 import java.nio.file.Files
+import java.util.stream.Collectors
 
 plugins {
     id 'cpp-library'
@@ -8,6 +9,7 @@ plugins {
 
 assemble {
     dependsOn ":jvox-core:generateJniHeaders"
+    dependsOn "compileCuda"
 }
 
 library {
@@ -16,9 +18,18 @@ library {
         def linkExecutable = linkTask.get()
 
         if(toolChain instanceof VisualCpp) {
+            linkExecutable.linkerArgs.add("/DEFAULTLIB:glu32.lib")
+            linkExecutable.linkerArgs.add("/DEFAULTLIB:opengl32.lib")
+            linkExecutable.linkerArgs.add("/DEFAULTLIB:winmm.lib")
+            linkExecutable.linkerArgs.add("/DEFAULTLIB:gdi32.lib")
+
             linkExecutable.linkerArgs.add("/LIBPATH:B:\\Programs\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2\\lib\\x64")
         } else if (toolChain instanceof GccCompatibleToolChain) {
-
+            linkExecutable.linkerArgs.add("-lgluit")
+            linkExecutable.linkerArgs.add("-lwinmm")
+            linkExecutable.linkerArgs.add("-lglu32")
+            linkExecutable.linkerArgs.add("-lopengl32")
+            linkExecutable.linkerArgs.add("-lgdi32")
         }
     }
 
@@ -28,15 +39,49 @@ library {
 
     source.from {
         files(fileTree(dir: 'src/main/cpp'),
-                fileTree(dir: 'libs/cuda_voxelizer/src', exclude: 'main.cpp'))
+                fileTree(dir: 'libs/cuda_voxelizer/src', exclude: 'main.cpp', includes: ["**/*.cpp", "**/*.h"]),
+                // Manually build with trimesh2, since transitive dependencies don't want to work.
+                '../trimesh-natives/libs/trimesh2/gluit', '../trimesh-natives/libs/trimesh2/libsrc')
     }
 
     publicHeaders.from {
         files('src/main/headers')
     }
     privateHeaders.from {
-        files('libs/cuda_voxelizer/src', 'libs/glm')
+        files('libs/cuda_voxelizer/src', 'libs/glm',
+                // Manually build with trimesh2, since transitive dependencies don't want to work.
+                '../trimesh-natives/libs/trimesh2/include', '../trimesh-natives/libs/trimesh2/include/GL')
     }
+}
+
+// Find CUDA
+def cudaPath
+
+if(System.getenv("CUDA_PATH") == null) {
+    throw new IllegalStateException("CUDA not found: CUDA_PATH environment variable does not exist.")
+}
+
+cudaPath = file(System.getenv("CUDA_PATH")).toPath()
+
+task compileCuda(type:Exec, group: 'build') {
+    file("build/obj/main/cuda").mkdirs()
+
+    ArrayList<String> command = new ArrayList<>();
+    command.add(cudaPath.resolve('bin').resolve('nvcc.exe'))
+
+    command.add('--compile')
+    command.add('--output-directory')
+    command.add(file("build/obj/main/cuda").toString())
+
+    library.publicHeaders.forEach { file -> command.add("--include-path"); command.add(file.toString()) }
+    library.privateHeaders.forEach { file -> command.add("--include-path"); command.add(file.toString()) }
+
+    fileTree(dir: 'libs/cuda_voxelizer/src', includes: ['**/*.cu', '**.*.cuh']).forEach { file ->
+        command.add(file.toString())
+    }
+
+    println "Compile Cuda Command: " + command.stream().map { obj -> obj.toString() } .collect(Collectors.joining(" "))
+    commandLine command
 }
 
 System.out.println(library.source.from)
@@ -53,14 +98,6 @@ components.main.binaries.whenElementFinalized { binary ->
         }
 
         // Include CUDA
-        def cudaPath
-
-        if(System.getenv("CUDA_PATH") == null) {
-            throw new IllegalStateException("CUDA not found: CUDA_PATH environment variable does not exist.")
-        }
-
-        cudaPath = file(System.getenv("CUDA_PATH")).toPath()
-
         def cudaIncludePath
         def cudaLibPath
 
@@ -86,5 +123,11 @@ components.main.binaries.whenElementFinalized { binary ->
         for(java.nio.file.Path child : Files.newDirectoryStream(cudaLibPath)) {
             add(binary.linkLibraries.name, files(child))
         }
+
+        // Link against FreeGLUT
+        add(binary.linkLibraries.name, files('../trimesh-natives/libs/freeglut/lib/x64/freeglut.lib'))
+
+        // Force link generated CUDA libraries
+        fileTree(dir: 'build/obj/main/cuda').forEach { f -> add(binary.linkLibraries.name, files(f.toString())) }
     }
 }

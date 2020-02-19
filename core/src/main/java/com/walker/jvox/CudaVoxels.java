@@ -10,8 +10,6 @@ public class CudaVoxels extends Voxels {
         cudaEnabled = initializeCuda();
     }
 
-    private long voxelData;
-
     private CudaVoxels() {
 
     }
@@ -25,9 +23,30 @@ public class CudaVoxels extends Voxels {
         return cudaEnabled;
     }
 
+    /**
+     * Voxelize to a generated table in CUDA host memory.
+     *
+     * @param mesh
+     * @param gridSize
+     * @return
+     */
     public static CudaVoxels voxelize(TriMesh mesh, int gridSize) {
         CudaVoxels voxels = new CudaVoxels();
         voxels.voxelData = nVoxelize(mesh.triMeshPointer, gridSize);
+        return voxels;
+    }
+
+    /**
+     * Voxelize to a table allocated externally. The table MUST be in CUDA host memory.
+     *
+     * @param mesh
+     * @param externalTable
+     * @param gridSize
+     * @return
+     */
+    public static CudaVoxels voxelize(TriMesh mesh, long externalTable, int gridSize) {
+        CudaVoxels voxels = new CudaVoxels();
+        voxels.voxelData = nVoxelize(mesh.triMeshPointer, externalTable, gridSize);
         return voxels;
     }
 
@@ -35,5 +54,6 @@ public class CudaVoxels extends Voxels {
     private static native boolean initializeCuda();
 
     private static native long nVoxelize(long meshPointer, int gridsize);
+    private static native long nVoxelize(long meshPointer, long externalTable, int gridsize);
     private static native void destroyVoxelData(long voxelDataPointer);
 }
