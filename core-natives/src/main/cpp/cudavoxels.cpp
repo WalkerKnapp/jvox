@@ -7,6 +7,8 @@
 #include "com_walker_jvox_CudaVoxels.h"
 
 #include <thrust_operations.cuh>
+#include <com_walker_jvox_CudaVoxels.h>
+
 
 // Declaration of CUDA functions
 float* meshToGPU_thrust(const trimesh::TriMesh *mesh); // METHOD 3 to transfer triangles can be found in thrust_operations.cu(h)
@@ -15,6 +17,14 @@ void voxelize(const voxinfo & v, float* triangle_data, unsigned int* vtable, boo
 
 jboolean Java_com_walker_jvox_CudaVoxels_initializeCuda(JNIEnv *env, jclass jClazz) {
     return initCuda();
+}
+
+jlong Java_com_walker_jvox_CudaVoxels_createNewVoxelData(JNIEnv *env, jclass jClazz, jint jGridSize) {
+    auto *voxData = static_cast<voxeldata *>(malloc(sizeof(voxeldata)));
+    voxData->voxtable_size = static_cast<size_t>(ceil(static_cast<size_t>(jGridSize)* static_cast<size_t>(jGridSize)* static_cast<size_t>(jGridSize)) / 8.0f);
+    checkCudaErrors(cudaHostAlloc((void**)voxData->voxtable, voxData->voxtable_size, cudaHostAllocDefault));
+
+    return reinterpret_cast<jlong>(voxData);
 }
 
 jlong Java_com_walker_jvox_CudaVoxels_nVoxelize__JI(JNIEnv *env, jclass jClazz, jlong pMesh, jint jGridSize) {

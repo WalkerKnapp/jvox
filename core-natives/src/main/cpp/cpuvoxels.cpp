@@ -2,9 +2,19 @@
 #include <util.h>
 #include <cpu_voxelizer.h>
 #include <TriMesh.h>
+#include <com_walker_jvox_CpuVoxels.h>
+
 
 #include "voxels.h"
 #include "com_walker_jvox_CpuVoxels.h"
+
+jlong Java_com_walker_jvox_CpuVoxels_createNewVoxelData(JNIEnv *env, jclass jClazz, jint jGridSize) {
+    auto *voxData = static_cast<voxeldata *>(malloc(sizeof(voxeldata)));
+    voxData->voxtable_size = static_cast<size_t>(ceil(static_cast<size_t>(jGridSize)* static_cast<size_t>(jGridSize)* static_cast<size_t>(jGridSize)) / 8.0f);
+    voxData->voxtable = static_cast<unsigned int *>(calloc(1, voxData->voxtable_size));
+
+    return reinterpret_cast<jlong>(voxData);
+}
 
 jlong Java_com_walker_jvox_CpuVoxels_nVoxelize__JI(JNIEnv *env, jclass jClazz, jlong pMesh, jint jGridSize) {
     auto *mesh = reinterpret_cast<trimesh::TriMesh *>(pMesh);
