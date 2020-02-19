@@ -29,13 +29,32 @@ public abstract class Voxels implements AutoCloseable {
     }
 
     protected long voxelData;
+    protected int gridSize;
+
+    protected ByteBuffer cachedVoxelByteBuffer;
 
     protected Voxels() {
 
     }
 
+    public int getGridSize() {
+        return this.gridSize;
+    }
+
+    public boolean checkVoxel(int x, int y, int z) {
+        int location = x + (y * gridSize) + (z * gridSize * gridSize);
+        int byteLocation = location / Byte.SIZE;
+        int bitLocation = (Byte.SIZE - 1) - (location % Byte.SIZE); // Bits are counted RtL, but arrays are indexed LtR
+
+        return (getVoxelTable().get(byteLocation) & (1 << bitLocation)) == (1 << bitLocation);
+    }
+
     public ByteBuffer getVoxelTable() {
-        return getVoxelTableAsBuffer(voxelData);
+        if(cachedVoxelByteBuffer == null) {
+            return getVoxelTableAsBuffer(voxelData);
+        } else {
+            return cachedVoxelByteBuffer;
+        }
     }
 
     /**
