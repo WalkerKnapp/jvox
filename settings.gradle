@@ -9,4 +9,5 @@ include 'trimesh'
 findProject(':trimesh')?.name = 'jvox-trimesh'
 include 'trimesh-natives'
 findProject(':trimesh-natives')?.name = 'jvox-trimesh-natives'
+include 'examples'
 

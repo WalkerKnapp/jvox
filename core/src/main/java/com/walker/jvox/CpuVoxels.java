@@ -7,16 +7,27 @@ import java.nio.ByteBuffer;
  */
 public class CpuVoxels extends Voxels {
     /**
-     * Create a new set of voxels given a gridsize
+     * Create a new set of voxels given a gridsize in memory.
      */
     public CpuVoxels(int gridSize) {
         this.gridSize = gridSize;
         this.voxelData = createNewVoxelData(gridSize);
     }
 
-    private CpuVoxels(long voxelData, int gridSize) {
-        this.voxelData = voxelData;
+    /**
+     * Create a set of voxels to pre-existing memory representing either:
+     * Compressed memory if the boolean compressed is set to true
+     * Expanded memory if the boolean compressed is set to false.
+     * @param voxelTable
+     * @param gridSize
+     */
+    public CpuVoxels(long voxelTable, int gridSize, boolean compressed) {
+        this(compressed ? voxelTable : 0, compressed ? 0 : voxelTable, gridSize);
+    }
+
+    public CpuVoxels(long compressedVoxelTable, long expandedVoxelTable, int gridSize) {
         this.gridSize = gridSize;
+        this.voxelData = createVoxelDataFromExistingTables(compressedVoxelTable, expandedVoxelTable, gridSize);
     }
 
     @Override
@@ -24,32 +35,27 @@ public class CpuVoxels extends Voxels {
         destroyVoxelData(voxelData);
     }
 
-    /**
-     * Voxelize to a newly created table.
-     *
-     * @param mesh
-     * @param gridSize
-     * @return
-     */
-    public static CpuVoxels voxelize(TriMesh mesh, int gridSize) {
-        return new CpuVoxels(nVoxelize(mesh.triMeshPointer, gridSize), gridSize);
+    @Override
+    public ByteBuffer getCompressedVoxelTable() {
+        return getCompressedVoxelTableBuffer(voxelData, gridSize);
     }
 
-    /**
-     * Voxelize to a table in external memory.
-     *
-     * @param mesh
-     * @param externalTable
-     * @param gridSize
-     * @return
-     */
-    public static CpuVoxels voxelize(TriMesh mesh, long externalTable, int gridSize) {
-        return new CpuVoxels(nVoxelize(mesh.triMeshPointer, externalTable, gridSize), gridSize);
+    @Override
+    public ByteBuffer getExpandedVoxelTable() {
+        return getExpandedVoxelTableBuffer(voxelData, gridSize);
+    }
+
+    @Override
+    public void voxelize(TriMesh mesh) {
+        nVoxelize(voxelData, mesh.triMeshPointer, gridSize);
     }
 
     // Native Methods
     private static native long createNewVoxelData(int gridSize);
-    private static native long nVoxelize(long meshPointer, int gridsize);
-    private static native long nVoxelize(long meshPointer, long externalTable, int gridsize);
+    private static native long createVoxelDataFromExistingTables(long compressedTable, long expandedTable, int gridSize);
+    private static native void nVoxelize(long voxelDataPointer, long meshPointer, int gridsize);
     private static native void destroyVoxelData(long voxelDataPointer);
+
+    private static native ByteBuffer getCompressedVoxelTableBuffer(long pVoxelData, int gridSize);
+    private static native ByteBuffer getExpandedVoxelTableBuffer(long pVoxelData, int gridSize);
 }

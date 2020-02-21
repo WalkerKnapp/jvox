@@ -12,19 +12,19 @@ import java.util.function.Function;
 public class Binvox {
     public static Voxels parseBinvox(Path binvoxPath) throws IOException {
         if(CudaVoxels.isSupported()) {
-            return parseBinvoxCuda(binvoxPath);
+            return parseBinvox(binvoxPath, CudaVoxels::new);
         } else {
-            return parseBinvoxCpu(binvoxPath);
+            return parseBinvox(binvoxPath, CpuVoxels::new);
         }
     }
 
-    public static CpuVoxels parseBinvoxCpu(Path binvoxPath) throws IOException {
+    public static Voxels parseBinvox(Path binvoxPath, Function<Integer, ? extends Voxels> voxelCreator) throws IOException {
         try(BufferedReader reader = Files.newBufferedReader(binvoxPath)) {
             if(!reader.readLine().startsWith("#binvox")) {
                 throw new IllegalStateException("File is not a binvox file: " + binvoxPath.toString());
             }
 
-            CpuVoxels voxels = null;
+            Voxels voxels = null;
 
             String line;
             while ((line = reader.readLine()) != null) {
@@ -37,50 +37,14 @@ public class Binvox {
                     }
 
                     int gridSize = Integer.parseInt(split[1]); // TODO: Handle non-cube grids
-                    voxels = new CpuVoxels(gridSize);
+                    voxels = voxelCreator.apply(gridSize);
 
                 } else if (line.startsWith("data")) {
                     if(voxels == null) {
                         throw new IllegalStateException("Binvox format improperly formatted: No dim line: " + binvoxPath.toString());
                     }
 
-                    ByteBuffer voxelTable = voxels.getVoxelTable();
-                    // TODO: Allow for compressed binvox
-                    int count = reader.read(voxelTable.asCharBuffer());
-                }
-            }
-
-            return voxels;
-        }
-    }
-
-    public static CudaVoxels parseBinvoxCuda(Path binvoxPath) throws IOException {
-        try(BufferedReader reader = Files.newBufferedReader(binvoxPath)) {
-            if(!reader.readLine().startsWith("#binvox")) {
-                throw new IllegalStateException("File is not a binvox file: " + binvoxPath.toString());
-            }
-
-            CudaVoxels voxels = null;
-
-            String line;
-            while ((line = reader.readLine()) != null) {
-                // TODO: Handle translation and scaling
-                if(line.startsWith("dim")) {
-                    String[] split = line.split(" ");
-
-                    if(split.length < 4) {
-                        throw new IllegalStateException("Binvox format improperly formatted: Not enough dim arguments: " + binvoxPath.toString());
-                    }
-
-                    int gridSize = Integer.parseInt(split[1]); // TODO: Handle non-cube grids
-                    voxels = new CudaVoxels(gridSize);
-
-                } else if (line.startsWith("data")) {
-                    if(voxels == null) {
-                        throw new IllegalStateException("Binvox format improperly formatted: No dim line: " + binvoxPath.toString());
-                    }
-
-                    ByteBuffer voxelTable = voxels.getVoxelTable();
+                    ByteBuffer voxelTable = voxels.getExpandedVoxelTable();
                     // TODO: Allow for compressed binvox
                     int count = reader.read(voxelTable.asCharBuffer());
                 }

@@ -31,30 +31,51 @@ public abstract class Voxels implements AutoCloseable {
     protected long voxelData;
     protected int gridSize;
 
-    protected ByteBuffer cachedVoxelByteBuffer;
+    protected ByteBuffer cachedCompressedVoxelByteBuffer;
+    protected ByteBuffer cachedExpandedVoxelByteBuffer;
 
     protected Voxels() {
 
     }
+
+    public abstract ByteBuffer getCompressedVoxelTable();
+
+    public abstract ByteBuffer getExpandedVoxelTable();
+
+    public abstract void voxelize(TriMesh mesh);
 
     public int getGridSize() {
         return this.gridSize;
     }
 
     public boolean checkVoxel(int x, int y, int z) {
+        if (cachedExpandedVoxelByteBuffer != null) {
+            return checkVoxelExpanded(x, y, z);
+        } else {
+            return checkVoxelCompressed(x, y, z);
+        }
+    }
+
+    private boolean checkVoxelCompressed(int x, int y, int z) {
         int location = x + (y * gridSize) + (z * gridSize * gridSize);
         int byteLocation = location / Byte.SIZE;
         int bitLocation = (Byte.SIZE - 1) - (location % Byte.SIZE); // Bits are counted RtL, but arrays are indexed LtR
 
-        return (getVoxelTable().get(byteLocation) & (1 << bitLocation)) == (1 << bitLocation);
+        return (getCompressedVoxelTable().get(byteLocation) & (1 << bitLocation)) == (1 << bitLocation);
     }
 
-    public ByteBuffer getVoxelTable() {
-        if(cachedVoxelByteBuffer == null) {
-            return getVoxelTableAsBuffer(voxelData);
-        } else {
-            return cachedVoxelByteBuffer;
-        }
+    private boolean checkVoxelExpanded(int x, int y, int z) {
+        int location = x + (y * gridSize) + (z * gridSize * gridSize);
+
+        return getExpandedVoxelTable().get(location) > 0;
+    }
+
+    public static int getCompressedVoxelTableSize(int gridSize) {
+        return (gridSize * gridSize * gridSize) / Byte.SIZE;
+    }
+
+    public static int getExpandedVoxelTableSize(int gridSize) {
+        return (gridSize * gridSize * gridSize);
     }
 
     /**
@@ -62,14 +83,16 @@ public abstract class Voxels implements AutoCloseable {
      * Creates a table to store the new voxels.
      * @return either a CpuVoxels or CudaVoxels instance.
      */
-    public static Voxels voxelize(TriMesh mesh, int gridSize) {
-        if(CudaVoxels.isSupported()) {
-            return CudaVoxels.voxelize(mesh, gridSize);
-        } else {
-            return CpuVoxels.voxelize(mesh, gridSize);
-        }
-    }
+    public static Voxels voxelizeFromNew(TriMesh mesh, int gridSize) {
+        Voxels voxels;
 
-    // Native Methods
-    private static native ByteBuffer getVoxelTableAsBuffer(long pVoxelData);
+        if(CudaVoxels.isSupported()) {
+            voxels = new CudaVoxels(gridSize);
+        } else {
+            voxels = new CpuVoxels(gridSize);
+        }
+
+        voxels.voxelize(mesh);
+        return voxels;
+    }
 }
