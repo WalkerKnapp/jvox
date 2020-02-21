@@ -2,7 +2,10 @@ import org.gradle.internal.jvm.Jvm
 
 plugins {
     id 'java'
+    id 'maven'
 }
+
+archivesBaseName = 'jvox-core'
 
 sourceCompatibility = 1.8
 
